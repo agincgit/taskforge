@@ -11,11 +11,8 @@ import (
 	"github.com/agincgit/taskforge/model"
 )
 
-// NewRouter sets up database migrations and registers all TaskForge API routes.
-// Returns an *http.ServeMux or *mux.Router ready to be passed to http.ListenAndServe.
 func NewRouter(db *gorm.DB) (*mux.Router, error) {
-	// Auto-migrate all models
-	err := db.AutoMigrate(
+	if err := db.AutoMigrate(
 		&model.Task{},
 		&model.TaskInput{},
 		&model.TaskOutput{},
@@ -27,33 +24,32 @@ func NewRouter(db *gorm.DB) (*mux.Router, error) {
 		&model.DeadLetterQueue{},
 		&model.TaskCleanup{},
 		&model.JobQueue{},
-	)
-	if err != nil {
+	); err != nil {
 		return nil, fmt.Errorf("auto-migrate failed: %v", err)
 	}
 
-	router := mux.NewRouter()
-	api := router.PathPrefix("/taskforge/api/v1").Subrouter()
+	r := mux.NewRouter()
+	api := r.PathPrefix("/taskforge/api/v1").Subrouter()
 
-	// Task endpoints
+	// Tasks
 	th := handler.NewTaskHandler(db)
 	api.HandleFunc("/tasks", th.CreateTask).Methods("POST")
 	api.HandleFunc("/tasks", th.GetTasks).Methods("GET")
 	api.HandleFunc("/tasks/{id}", th.UpdateTask).Methods("PUT")
 	api.HandleFunc("/tasks/{id}", th.DeleteTask).Methods("DELETE")
 
-	// Worker Queue endpoints
+	// WorkerQueue
 	wqh := handler.NewWorkerQueueHandler(db)
 	api.HandleFunc("/workerqueue", wqh.EnqueueTask).Methods("POST")
 	api.HandleFunc("/workerqueue", wqh.GetQueue).Methods("GET")
 	api.HandleFunc("/workerqueue/{id}", wqh.DequeueTask).Methods("DELETE")
 
-	// Task Template endpoints
+	// TaskTemplates
 	tth := handler.NewTaskTemplateHandler(db)
 	api.HandleFunc("/tasktemplate", tth.CreateTaskTemplate).Methods("POST")
 	api.HandleFunc("/tasktemplate", tth.GetTaskTemplates).Methods("GET")
 	api.HandleFunc("/tasktemplate/{id}", tth.UpdateTaskTemplate).Methods("PUT")
 	api.HandleFunc("/tasktemplate/{id}", tth.DeleteTaskTemplate).Methods("DELETE")
 
-	return router, nil
+	return r, nil
 }

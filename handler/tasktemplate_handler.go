@@ -14,6 +14,10 @@ type TaskTemplateHandler struct {
 	DB *gorm.DB
 }
 
+func NewTaskTemplateHandler(db *gorm.DB) *TaskTemplateHandler {
+	return &TaskTemplateHandler{DB: db}
+}
+
 func (h *TaskTemplateHandler) CreateTaskTemplate(w http.ResponseWriter, r *http.Request) {
 	var tmpl model.TaskTemplate
 	if err := json.NewDecoder(r.Body).Decode(&tmpl); err != nil {

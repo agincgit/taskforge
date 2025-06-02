@@ -12,7 +12,9 @@ import (
 type WorkerQueueHandler struct {
 	DB *gorm.DB
 }
-
+func NewWorkerQueueHandler(db *gorm.DB) *WorkerQueueHandler {
+    return &WorkerQueueHandler{DB: db}
+}\
 func (h *WorkerQueueHandler) EnqueueTask(w http.ResponseWriter, r *http.Request) {
 	var entry model.JobQueue
 	if err := json.NewDecoder(r.Body).Decode(&entry); err != nil {
