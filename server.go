@@ -1,54 +1,59 @@
-package main
+// server.go
+package taskforge
 
 import (
 	"fmt"
-	"log"
-	"net/http"
 
-	"github.com/agincgit/taskforge/config"
+	"github.com/gorilla/mux"
+	"gorm.io/gorm"
+
 	"github.com/agincgit/taskforge/handler"
 	"github.com/agincgit/taskforge/model"
-	"github.com/gorilla/mux"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 )
 
-func main() {
-	cfg := config.GetConfig("config.json")
-
-	db, err := gorm.Open(postgres.Open(cfg.DBDSN), &gorm.Config{})
+// NewRouter sets up database migrations and registers all TaskForge API routes.
+// Returns an *http.ServeMux or *mux.Router ready to be passed to http.ListenAndServe.
+func NewRouter(db *gorm.DB) (*mux.Router, error) {
+	// Auto-migrate all models
+	err := db.AutoMigrate(
+		&model.Task{},
+		&model.TaskInput{},
+		&model.TaskOutput{},
+		&model.TaskHistory{},
+		&model.TaskTemplate{},
+		&model.WorkerType{},
+		&model.WorkerRegistration{},
+		&model.WorkerHeartbeat{},
+		&model.DeadLetterQueue{},
+		&model.TaskCleanup{},
+		&model.JobQueue{},
+	)
 	if err != nil {
-		log.Fatalf("failed to connect database: %v", err)
+		return nil, fmt.Errorf("auto-migrate failed: %v", err)
 	}
 
-	// Migrate models
-	db.AutoMigrate(&model.Task{}, &model.TaskInput{}, &model.TaskOutput{}, &model.TaskHistory{},
-		&model.TaskTemplate{}, &model.WorkerType{}, &model.WorkerRegistration{},
-		&model.WorkerHeartbeat{}, &model.DeadLetterQueue{}, &model.TaskCleanup{},
-		&model.JobQueue{})
-
-	// Setup handlers
 	router := mux.NewRouter()
-	wh := &handler.WorkerHandler{DB: db}
-	wqh := &handler.WorkerQueueHandler{DB: db}
-	tth := &handler.TaskTemplateHandler{DB: db}
-	th := &handler.TaskHandler{DB: db}
+	api := router.PathPrefix("/taskforge/api/v1").Subrouter()
 
-	router.HandleFunc("/api/v1/worker", wh.RegisterWorker).Methods("POST")
-	router.HandleFunc("/api/v1/worker/{id}/heartbeat", wh.Heartbeat).Methods("PUT")
-	router.HandleFunc("/api/v1/workerqueue", wqh.EnqueueTask).Methods("POST")
-	router.HandleFunc("/api/v1/workerqueue", wqh.GetQueue).Methods("GET")
-	router.HandleFunc("/api/v1/workerqueue/{id}", wqh.DequeueTask).Methods("DELETE")
-	router.HandleFunc("/api/v1/tasktemplate", tth.CreateTaskTemplate).Methods("POST")
-	router.HandleFunc("/api/v1/tasktemplate", tth.GetTaskTemplates).Methods("GET")
-	router.HandleFunc("/api/v1/tasktemplate/{id}", tth.UpdateTaskTemplate).Methods("PUT")
-	router.HandleFunc("/api/v1/tasktemplate/{id}", tth.DeleteTaskTemplate).Methods("DELETE")
-	router.HandleFunc("/api/v1/task", th.CreateTask).Methods("POST")
-	router.HandleFunc("/api/v1/task", th.GetTasks).Methods("GET")
-	router.HandleFunc("/api/v1/task/{id}", th.GetTask).Methods("GET")
-	router.HandleFunc("/api/v1/task/{id}", th.UpdateTask).Methods("PUT")
-	router.HandleFunc("/api/v1/task/{id}", th.DeleteTask).Methods("DELETE")
+	// Task endpoints
+	th := handler.NewTaskHandler(db)
+	api.HandleFunc("/tasks", th.CreateTask).Methods("POST")
+	api.HandleFunc("/tasks", th.GetTasks).Methods("GET")
+	api.HandleFunc("/tasks/{id}", th.UpdateTask).Methods("PUT")
+	api.HandleFunc("/tasks/{id}", th.DeleteTask).Methods("DELETE")
 
-	fmt.Printf("Server starting on port %s...", cfg.Port)
-	log.Fatal(http.ListenAndServe(":"+cfg.Port, router))
+	// Worker Queue endpoints
+	wqh := handler.NewWorkerQueueHandler(db)
+	api.HandleFunc("/workerqueue", wqh.EnqueueTask).Methods("POST")
+	api.HandleFunc("/workerqueue", wqh.GetQueue).Methods("GET")
+	api.HandleFunc("/workerqueue/{id}", wqh.DequeueTask).Methods("DELETE")
+
+	// Task Template endpoints
+	tth := handler.NewTaskTemplateHandler(db)
+	api.HandleFunc("/tasktemplate", tth.CreateTaskTemplate).Methods("POST")
+	api.HandleFunc("/tasktemplate", tth.GetTaskTemplates).Methods("GET")
+	api.HandleFunc("/tasktemplate/{id}", tth.UpdateTaskTemplate).Methods("PUT")
+	api.HandleFunc("/tasktemplate/{id}", tth.DeleteTaskTemplate).Methods("DELETE")
+
+	return router, nil
 }
