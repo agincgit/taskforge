@@ -1,4 +1,3 @@
-// config/config.go
 package config
 
 import (
@@ -14,31 +13,38 @@ import (
 
 // Config holds all application settings.
 type Config struct {
+	// Logging and paths
 	LogDepth        string
 	LogLocation     string
 	AutoAppPath     string
 	AutoAppConfPath string
 	AutoAppLogPath  string
+
+	// TaskForge API
 	TaskForgeAPIURL string
 
-	// ── Database connection fields ──
+	// Database connection fields
 	DBHost     string
 	DBUser     string
 	DBPassword string
 	DBName     string
 	DBPort     string
 
-	HostName string // detected automatically
+	// HTTP port to listen on
+	Port string
+
+	// Hostname
+	HostName string
 }
 
-// generateWorkerName is used only as a fallback if the hostname cannot be determined.
+// generateWorkerName is used only as a fallback if hostname detection fails.
 func generateWorkerName() string {
 	b := make([]byte, 4)
 	_, _ = rand.Read(b)
 	return fmt.Sprintf("worker-%x", b)
 }
 
-// GetConfig loads app settings from a JSON file (name) under ./appconfig
+// GetConfig loads app settings from a JSON file under ./appconfig/<name>.json
 func GetConfig(name string) *Config {
 	var (
 		err                               error
@@ -52,7 +58,7 @@ func GetConfig(name string) *Config {
 	confDir = fmt.Sprintf("%s/appconfig", curDir)
 	logDir = fmt.Sprintf("%s/applogs", curDir)
 
-	// 2) Ensure config file (name) exists
+	// 2) Ensure config file exists
 	if _, err := os.Stat(confDir + "/" + name); os.IsNotExist(err) {
 		log.Panicln("Config file not found:", name)
 	}
@@ -65,17 +71,22 @@ func GetConfig(name string) *Config {
 
 	// 3) Read or initialize defaults
 	if err = viper.ReadInConfig(); err != nil {
-		log.Debug("Config not found or invalid; initializing defaults")
+		log.Debug("Config file missing or invalid, initializing defaults")
+
+		// Set defaults here:
 		viper.Set("LogLevel", "Warning")
 		viper.Set("LogLocation", logDir)
 		viper.Set("TaskForgeAPIURL", "https://api.taskforge.local")
 
-		// ── Set reasonable defaults for DB fields, if you like:
+		// DB defaults (override in your JSON as needed):
 		viper.Set("DBHost", "localhost")
 		viper.Set("DBPort", "5432")
 		viper.Set("DBUser", "postgres")
 		viper.Set("DBPassword", "password")
-		viper.Set("DBName", "taskforge")
+		viper.Set("DBName", "taskforge_db")
+
+		// HTTP listening port default:
+		viper.Set("Port", "8080")
 
 		_ = viper.WriteConfigAs(confDir + "/config.json")
 	} else {
@@ -94,7 +105,7 @@ func GetConfig(name string) *Config {
 		}
 	}
 
-	// 5) Build & return `Config`
+	// 5) Populate & return Config
 	return &Config{
 		LogDepth:        viper.GetString("LogLevel"),
 		LogLocation:     viper.GetString("LogLocation"),
@@ -109,6 +120,7 @@ func GetConfig(name string) *Config {
 		DBPassword: viper.GetString("DBPassword"),
 		DBName:     viper.GetString("DBName"),
 
+		Port:     viper.GetString("Port"),
 		HostName: hostName,
 	}
 }
