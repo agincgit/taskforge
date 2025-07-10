@@ -1,0 +1,11 @@
+{
+  "LogLevel": "Warning",
+  "LogLocation": "applogs",
+  "TaskForgeAPIURL": "https://api.taskforge.local",
+  "DBHost": "localhost",
+  "DBPort": "5432",
+  "DBUser": "postgres",
+  "DBPassword": "password",
+  "DBName": "taskforge_db",
+  "Port": "8080"
+}
