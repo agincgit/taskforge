@@ -63,11 +63,10 @@ func GetConfig(name string) *Config {
 		log.Panicln("Config file not found:", name)
 	}
 
-	log.Debug("Loading config from:", confDir+"/"+name)
-	viper.SetConfigName(name)
-	viper.SetConfigType("json")
-	viper.AddConfigPath(confDir)
-	viper.AddConfigPath(".")
+	// Use explicit file path so callers can pass name with extension
+	configFile := fmt.Sprintf("%s/%s", confDir, name)
+	log.Debug("Loading config from:", configFile)
+	viper.SetConfigFile(configFile)
 
 	// 3) Read or initialize defaults
 	if err = viper.ReadInConfig(); err != nil {
