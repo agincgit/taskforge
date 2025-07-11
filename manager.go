@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -65,10 +66,9 @@ func NewManager(cfg TaskForgeConfig) (*Manager, error) {
 
 // Enqueue inserts a new Task with StatusPending.
 func (m *Manager) Enqueue(ctx context.Context, t *model.Task) error {
-	// cast the typed Status into the string field
 	t.Status = string(StatusPending)
 	if m.logger != nil {
-		m.logger.Infof("Enqueue task with ID=%d", t.ID)
+		m.logger.Infof("Enqueue task with ID=%s", t.ID)
 	}
 	return m.db.WithContext(ctx).Create(t).Error
 }
@@ -89,7 +89,7 @@ func (m *Manager) Reserve(ctx context.Context) (*model.Task, error) {
 
 	t.Status = string(StatusInProgress)
 	if m.logger != nil {
-		m.logger.Infof("Reserving task ID=%d", t.ID)
+		m.logger.Infof("Reserving task ID=%s", t.ID)
 	}
 	if err := m.db.WithContext(ctx).Save(&t).Error; err != nil {
 		return nil, fmt.Errorf("taskforge: reserve failed: %w", err)
@@ -98,9 +98,9 @@ func (m *Manager) Reserve(ctx context.Context) (*model.Task, error) {
 }
 
 // UpdateStatus sets a Task’s status to any valid value.
-func (m *Manager) UpdateStatus(ctx context.Context, id uint, s Status) error {
+func (m *Manager) UpdateStatus(ctx context.Context, id uuid.UUID, s Status) error {
 	if m.logger != nil {
-		m.logger.Infof("Updating task ID=%d to status=%s", id, s)
+		m.logger.Infof("Updating task ID=%s to status=%s", id, s)
 	}
 	return m.db.WithContext(ctx).
 		Where("id = ?", id).
@@ -109,10 +109,62 @@ func (m *Manager) UpdateStatus(ctx context.Context, id uint, s Status) error {
 }
 
 // Complete marks a Task as complete or failed.
-func (m *Manager) Complete(ctx context.Context, id uint, success bool) error {
+func (m *Manager) Complete(ctx context.Context, id uuid.UUID, success bool) error {
 	newStatus := StatusFailed
 	if success {
-		newStatus = StatusComplete
+		newStatus = StatusSucceeded
 	}
 	return m.UpdateStatus(ctx, id, newStatus)
+}
+
+// CancelTask attempts to cancel a task that is pending or in progress.
+func (m *Manager) CancelTask(ctx context.Context, id uuid.UUID) error {
+	return m.db.WithContext(ctx).
+		Where("id = ? AND status IN ?", id, []string{string(StatusPending), string(StatusInProgress)}).
+		Updates(map[string]interface{}{"status": string(StatusPendingCancel)}).
+		Error
+}
+
+// RetryTask clones a failed task into a new retry task.
+func (m *Manager) RetryTask(ctx context.Context, id uuid.UUID) (*model.Task, error) {
+	var t model.Task
+	if err := m.db.WithContext(ctx).First(&t, "id = ? AND status = ?", id, string(StatusFailed)).Error; err != nil {
+		return nil, err
+	}
+
+	newTask := t
+	newTask.ID = uuid.Nil
+	newTask.Status = string(StatusPending)
+	newTask.ParentTaskID = &t.ID
+	newTask.Attempt = t.Attempt + 1
+
+	if err := m.db.WithContext(ctx).Create(&newTask).Error; err != nil {
+		return nil, err
+	}
+	return &newTask, nil
+}
+
+// List returns tasks filtered by optional fields with pagination.
+func (m *Manager) List(ctx context.Context, filter map[string]interface{}, limit, offset int) ([]model.Task, error) {
+	var tasks []model.Task
+	db := m.db.WithContext(ctx)
+	if v, ok := filter["type"]; ok {
+		db = db.Where("type = ?", v)
+	}
+	if v, ok := filter["status"]; ok {
+		db = db.Where("status = ?", v)
+	}
+	if v, ok := filter["reference_id"]; ok {
+		db = db.Where("reference_id = ?", v)
+	}
+	if limit > 0 {
+		db = db.Limit(limit)
+	}
+	if offset > 0 {
+		db = db.Offset(offset)
+	}
+	if err := db.Order("friendly_id").Find(&tasks).Error; err != nil {
+		return nil, err
+	}
+	return tasks, nil
 }
