@@ -7,16 +7,44 @@ import (
 	"gorm.io/gorm"
 )
 
+type AuditModel struct {
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+	CreatedBy *string        `gorm:"type:varchar(254);index"`
+	UpdatedBy *string        `gorm:"type:varchar(254);index"`
+	DeletedBy *string        `gorm:"type:varchar(254);index"`
+}
+
 // ============================
 // Task Models
 // ============================
 type Task struct {
-	gorm.Model
-	Type        string `gorm:"index;not null"`
-	Status      string `gorm:"index;default:'pending'"`
-	RequestorID string `gorm:"type:varchar(320);index;not null"`
-	WorkerIdent string `gorm:"type:varchar(255)"`
-	Result      string `gorm:"type:text"`
+	ID            uuid.UUID  `gorm:"type:uuid;primaryKey"`
+	FriendlyID    uint       `gorm:"autoIncrement;not null"`
+	Type          string     `gorm:"index;not null"`
+	ReferenceID   string     `gorm:"index"`
+	Status        string     `gorm:"index;default:'pending'"`
+	Payload       string     `gorm:"type:text"`
+	Result        string     `gorm:"type:text"`
+	ParentTaskID  *uuid.UUID `gorm:"type:uuid"`
+	Attempt       int
+	StartedAt     *time.Time
+	ItemsTotal    int
+	ItemsImpacted int
+	ItemsFailed   int
+	AuditModel
+}
+
+func (t *Task) BeforeCreate(tx *gorm.DB) error {
+	if t.ID == uuid.Nil {
+		id, err := uuid.NewV7()
+		if err != nil {
+			return err
+		}
+		t.ID = id
+	}
+	return nil
 }
 
 type TaskInput struct {

@@ -11,15 +11,19 @@ import (
 type Status string
 
 const (
-	StatusPending    Status = "pending"
-	StatusInProgress Status = "in_progress"
-	StatusFailed     Status = "failed"
-	StatusComplete   Status = "complete"
+	StatusPending        Status = "pending"
+	StatusInProgress     Status = "in_progress"
+	StatusSucceeded      Status = "succeeded"
+	StatusFailed         Status = "failed"
+	StatusPendingCancel  Status = "pending_cancellation"
+	StatusCancelled      Status = "cancelled"
+	StatusFailedToCancel Status = "failed_to_cancel"
 )
 
 func (s Status) IsValid() bool {
 	switch s {
-	case StatusPending, StatusInProgress, StatusFailed, StatusComplete:
+	case StatusPending, StatusInProgress, StatusSucceeded, StatusFailed,
+		StatusPendingCancel, StatusCancelled, StatusFailedToCancel:
 		return true
 	}
 	return false
