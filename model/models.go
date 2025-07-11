@@ -4,23 +4,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
-
-type AuditModel struct {
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
-	CreatedBy *string        `gorm:"type:varchar(254);index"`
-	UpdatedBy *string        `gorm:"type:varchar(254);index"`
-	DeletedBy *string        `gorm:"type:varchar(254);index"`
-}
 
 // ============================
 // Task Models
 // ============================
 type Task struct {
-	ID            uuid.UUID  `gorm:"type:uuid;primaryKey"`
+	BaseModel
 	FriendlyID    uint       `gorm:"autoIncrement;not null"`
 	Type          string     `gorm:"index;not null"`
 	ReferenceID   string     `gorm:"index"`
@@ -33,36 +23,24 @@ type Task struct {
 	ItemsTotal    int
 	ItemsImpacted int
 	ItemsFailed   int
-	AuditModel
-}
-
-func (t *Task) BeforeCreate(tx *gorm.DB) error {
-	if t.ID == uuid.Nil {
-		id, err := uuid.NewV7()
-		if err != nil {
-			return err
-		}
-		t.ID = id
-	}
-	return nil
 }
 
 type TaskInput struct {
-	gorm.Model
+	BaseModel
 	TaskID     uint   `gorm:"index;not null"`
 	InputKey   string `gorm:"size:255;not null"`
 	InputValue string `gorm:"type:text;not null"`
 }
 
 type TaskOutput struct {
-	gorm.Model
+	BaseModel
 	TaskID    uint   `gorm:"index;not null"`
 	OutputKey string `gorm:"size:255;not null"`
 	Value     string `gorm:"type:text"`
 }
 
 type TaskHistory struct {
-	gorm.Model
+	BaseModel
 	TaskID  uint   `gorm:"index;not null"`
 	Status  string `gorm:"not null"`
 	Message string `gorm:"type:text"`
@@ -72,7 +50,7 @@ type TaskHistory struct {
 // TaskTemplate Models
 // ============================
 type TaskTemplate struct {
-	gorm.Model
+	BaseModel
 	Name           string        `gorm:"size:255;not null"`
 	Description    string        `gorm:"type:text"`
 	WorkerTypeID   uuid.UUID     `gorm:"type:uuid;not null"`
@@ -86,14 +64,13 @@ type TaskTemplate struct {
 // Worker Models
 // ============================
 type WorkerType struct {
-	gorm.Model
+	BaseModel
 	Name        string `gorm:"size:255;not null;unique"`
 	Description string `gorm:"type:text"`
 }
 
 type WorkerRegistration struct {
-	ID uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
-	gorm.Model
+	BaseModel
 	WorkerTypeID uuid.UUID `gorm:"type:uuid;not null"`
 	HostName     string    `gorm:"size:255;not null"`
 	StartTime    time.Time `gorm:"not null"`
@@ -101,8 +78,7 @@ type WorkerRegistration struct {
 }
 
 type WorkerHeartbeat struct {
-	ID uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
-	gorm.Model
+	BaseModel
 	WorkerID uuid.UUID `gorm:"type:uuid;not null"`
 	LastPing time.Time `gorm:"not null"`
 }
@@ -111,7 +87,7 @@ type WorkerHeartbeat struct {
 // Queue & Cleanup Models
 // ============================
 type DeadLetterQueue struct {
-	gorm.Model
+	BaseModel
 	WorkerID     uuid.UUID `gorm:"type:uuid;not null;index"`
 	TaskID       uint      `gorm:"index;not null"`
 	FailedAt     time.Time `gorm:"not null"`
@@ -121,7 +97,7 @@ type DeadLetterQueue struct {
 }
 
 type TaskCleanup struct {
-	gorm.Model
+	BaseModel
 	WorkerID       uuid.UUID `gorm:"type:uuid;not null;index"`
 	TaskID         uint      `gorm:"index;not null"`
 	ExpirationTime time.Time `gorm:"not null"`
@@ -129,7 +105,7 @@ type TaskCleanup struct {
 }
 
 type JobQueue struct {
-	gorm.Model
+	BaseModel
 	WorkerID       uuid.UUID `gorm:"type:uuid;not null;index"`
 	TaskID         uint      `gorm:"index;not null"`
 	QueueStatus    string    `gorm:"size:50;not null"`
