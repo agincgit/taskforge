@@ -1,11 +1,10 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
-	"github.com/gorilla/mux"
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"github.com/agincgit/taskforge/model"
@@ -15,29 +14,27 @@ type WorkerHandler struct {
 	DB *gorm.DB
 }
 
-func (h *WorkerHandler) RegisterWorker(w http.ResponseWriter, r *http.Request) {
+func (h *WorkerHandler) RegisterWorker(c *gin.Context) {
 	var reg model.WorkerRegistration
-	if err := json.NewDecoder(r.Body).Decode(&reg); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&reg); err != nil {
+		c.String(http.StatusBadRequest, "Invalid request body")
 		return
 	}
 	if err := h.DB.Create(&reg).Error; err != nil {
-		http.Error(w, "Failed to register worker", http.StatusInternalServerError)
+		c.String(http.StatusInternalServerError, "Failed to register worker")
 		return
 	}
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(reg)
+	c.JSON(http.StatusCreated, reg)
 }
 
-func (h *WorkerHandler) Heartbeat(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
+func (h *WorkerHandler) Heartbeat(c *gin.Context) {
+	id := c.Param("id")
 	var beat model.WorkerHeartbeat
 	if err := h.DB.First(&beat, "worker_id = ?", id).Error; err != nil {
-		http.Error(w, "Worker not found", http.StatusNotFound)
+		c.String(http.StatusNotFound, "Worker not found")
 		return
 	}
 	beat.LastPing = time.Now()
 	h.DB.Save(&beat)
-	w.WriteHeader(http.StatusOK)
+	c.Status(http.StatusOK)
 }

@@ -1,11 +1,10 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
-	"github.com/gorilla/mux"
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"github.com/agincgit/taskforge/model"
@@ -22,41 +21,40 @@ func NewWorkerQueueHandler(db *gorm.DB) *WorkerQueueHandler {
 }
 
 // EnqueueTask adds a new job to the queue.
-func (h *WorkerQueueHandler) EnqueueTask(w http.ResponseWriter, r *http.Request) {
+func (h *WorkerQueueHandler) EnqueueTask(c *gin.Context) {
 	var jq model.JobQueue
-	if err := json.NewDecoder(r.Body).Decode(&jq); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&jq); err != nil {
+		c.String(http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if err := h.DB.Create(&jq).Error; err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(jq)
+	c.JSON(http.StatusCreated, jq)
 }
 
 // GetQueue returns all queued jobs.
-func (h *WorkerQueueHandler) GetQueue(w http.ResponseWriter, r *http.Request) {
+func (h *WorkerQueueHandler) GetQueue(c *gin.Context) {
 	var queue []model.JobQueue
 	if err := h.DB.Find(&queue).Error; err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
-	json.NewEncoder(w).Encode(queue)
+	c.JSON(http.StatusOK, queue)
 }
 
 // DequeueTask removes a job from the queue by its ID.
-func (h *WorkerQueueHandler) DequeueTask(w http.ResponseWriter, r *http.Request) {
-	idParam := mux.Vars(r)["id"]
+func (h *WorkerQueueHandler) DequeueTask(c *gin.Context) {
+	idParam := c.Param("id")
 	id, err := strconv.ParseUint(idParam, 10, 64)
 	if err != nil {
-		http.Error(w, "invalid ID parameter", http.StatusBadRequest)
+		c.String(http.StatusBadRequest, "invalid ID parameter")
 		return
 	}
 	if err := h.DB.Delete(&model.JobQueue{}, id).Error; err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	c.Status(http.StatusNoContent)
 }

@@ -3,40 +3,40 @@ package taskforge
 import (
 	"fmt"
 
-	"github.com/gorilla/mux"
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"github.com/agincgit/taskforge/handler"
 )
 
 // NewRouter sets up database migrations and registers all TaskForge API routes.
-func NewRouter(db *gorm.DB) (*mux.Router, error) {
+func NewRouter(db *gorm.DB) (*gin.Engine, error) {
 	_, err := DBMigrate(db)
 	if err != nil {
 		fmt.Println("Database changes failed to apply")
 	}
-	router := mux.NewRouter()
-	api := router.PathPrefix("/taskforge/api/v1").Subrouter()
+	router := gin.Default()
+	api := router.Group("/taskforge/api/v1")
 
 	// Task endpoints
 	th := handler.NewTaskHandler(db)
-	api.HandleFunc("/tasks", th.CreateTask).Methods("POST")
-	api.HandleFunc("/tasks", th.GetTasks).Methods("GET")
-	api.HandleFunc("/tasks/{id}", th.UpdateTask).Methods("PUT")
-	api.HandleFunc("/tasks/{id}", th.DeleteTask).Methods("DELETE")
+	api.POST("/tasks", th.CreateTask)
+	api.GET("/tasks", th.GetTasks)
+	api.PUT("/tasks/:id", th.UpdateTask)
+	api.DELETE("/tasks/:id", th.DeleteTask)
 
 	// WorkerQueue endpoints
 	wqh := handler.NewWorkerQueueHandler(db)
-	api.HandleFunc("/workerqueue", wqh.EnqueueTask).Methods("POST")
-	api.HandleFunc("/workerqueue", wqh.GetQueue).Methods("GET")
-	api.HandleFunc("/workerqueue/{id}", wqh.DequeueTask).Methods("DELETE")
+	api.POST("/workerqueue", wqh.EnqueueTask)
+	api.GET("/workerqueue", wqh.GetQueue)
+	api.DELETE("/workerqueue/:id", wqh.DequeueTask)
 
 	// TaskTemplate endpoints
 	tth := handler.NewTaskTemplateHandler(db)
-	api.HandleFunc("/tasktemplate", tth.CreateTaskTemplate).Methods("POST")
-	api.HandleFunc("/tasktemplate", tth.GetTaskTemplates).Methods("GET")
-	api.HandleFunc("/tasktemplate/{id}", tth.UpdateTaskTemplate).Methods("PUT")
-	api.HandleFunc("/tasktemplate/{id}", tth.DeleteTaskTemplate).Methods("DELETE")
+	api.POST("/tasktemplate", tth.CreateTaskTemplate)
+	api.GET("/tasktemplate", tth.GetTaskTemplates)
+	api.PUT("/tasktemplate/:id", tth.UpdateTaskTemplate)
+	api.DELETE("/tasktemplate/:id", tth.DeleteTaskTemplate)
 
 	return router, nil
 }
