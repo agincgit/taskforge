@@ -1,25 +1,31 @@
-package taskforge
+package server
 
 import (
-	"fmt"
+	"context"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	taskforge "github.com/agincgit/taskforge"
 	"github.com/agincgit/taskforge/handler"
 )
 
 // NewRouter sets up database migrations and registers all TaskForge API routes.
 func NewRouter(db *gorm.DB) (*gin.Engine, error) {
-	_, err := DBMigrate(db)
+	mgr, err := taskforge.NewManager(taskforge.TaskForgeConfig{
+		DB:        db,
+		TableName: "tasks",
+		Context:   context.Background(),
+	})
 	if err != nil {
-		fmt.Println("Database changes failed to apply")
+		return nil, err
 	}
+
 	router := gin.Default()
 	api := router.Group("/taskforge/api/v1")
 
 	// Task endpoints
-	th := handler.NewTaskHandler(db)
+	th := handler.NewTaskHandler(mgr)
 	api.POST("/tasks", th.CreateTask)
 	api.GET("/tasks", th.GetTasks)
 	api.PUT("/tasks/:id", th.UpdateTask)
