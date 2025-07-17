@@ -4,39 +4,51 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
+	"github.com/google/uuid"
 
+	"github.com/agincgit/taskforge"
 	"github.com/agincgit/taskforge/model"
 )
 
 type TaskHandler struct {
-	DB *gorm.DB
+	Manager *taskforge.Manager
 }
 
-func NewTaskHandler(db *gorm.DB) *TaskHandler {
-	return &TaskHandler{DB: db}
+func NewTaskHandler(mgr *taskforge.Manager) *TaskHandler {
+	return &TaskHandler{Manager: mgr}
 }
 
 func (h *TaskHandler) CreateTask(c *gin.Context) {
 	var t model.Task
-	if err := c.ShouldBindJSON(&t); err != nil {
+	if err := c.ShouldBindJSON(t); err != nil {
 		c.String(http.StatusBadRequest, "Invalid body")
 		return
 	}
-	h.DB.Create(&t)
+	if err := h.Manager.CreateTask(c.Request.Context(), &t); err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
 	c.JSON(http.StatusCreated, t)
 }
 
 func (h *TaskHandler) GetTasks(c *gin.Context) {
-	var tasks []model.Task
-	h.DB.Find(&tasks)
+	tasks, err := h.Manager.GetTasks(c.Request.Context())
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
 	c.JSON(http.StatusOK, tasks)
 }
 
 func (h *TaskHandler) GetTask(c *gin.Context) {
 	id := c.Param("id")
-	var t model.Task
-	if err := h.DB.First(&t, "id = ?", id).Error; err != nil {
+	uuidVal, err := uuid.Parse(id)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid ID")
+		return
+	}
+	t, err := h.Manager.GetTask(c.Request.Context(), uuidVal)
+	if err != nil {
 		c.String(http.StatusNotFound, "Task not found")
 		return
 	}
@@ -45,8 +57,13 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 
 func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	id := c.Param("id")
-	var t model.Task
-	if h.DB.First(&t, "id = ?", id).Error != nil {
+	uuidVal, err := uuid.Parse(id)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid ID")
+		return
+	}
+	t, err := h.Manager.GetTask(c.Request.Context(), uuidVal)
+	if err != nil {
 		c.String(http.StatusNotFound, "Task not found")
 		return
 	}
@@ -54,12 +71,23 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		c.String(http.StatusBadRequest, "Invalid body")
 		return
 	}
-	h.DB.Save(&t)
+	if err := h.Manager.UpdateTask(c.Request.Context(), t); err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
 	c.JSON(http.StatusOK, t)
 }
 
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	id := c.Param("id")
-	h.DB.Delete(&model.Task{}, "id = ?", id)
+	uuidVal, err := uuid.Parse(id)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid ID")
+		return
+	}
+	if err := h.Manager.DeleteTask(c.Request.Context(), uuidVal); err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
 	c.Status(http.StatusNoContent)
 }

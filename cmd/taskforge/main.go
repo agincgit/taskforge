@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/agincgit/taskforge"
 	"github.com/agincgit/taskforge/config"
+	"github.com/agincgit/taskforge/server"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -29,7 +29,7 @@ func main() {
 	}
 
 	// 4) Create TaskForge router (with migrations & handlers)
-	router, err := taskforge.NewRouter(db)
+	router, err := server.NewRouter(db)
 	if err != nil {
 		log.Fatalf("Failed to initialize TaskForge: %v", err)
 	}

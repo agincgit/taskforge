@@ -3,6 +3,7 @@ package taskforge
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -38,6 +39,7 @@ type TaskForgeConfig struct {
 
 // Manager is a Go-native façade on top of the Task model.
 type Manager struct {
+	cfg     TaskForgeConfig
 	db      *gorm.DB
 	table   string
 	retry   RetryPolicy
@@ -48,13 +50,19 @@ type Manager struct {
 
 // NewManager applies migrations and returns a new Manager.
 func NewManager(cfg TaskForgeConfig) (*Manager, error) {
+	if cfg.DB == nil {
+		return nil, errors.New("taskforge: DB is required")
+	}
+
 	// Auto-migrate the Task table under the configured name.
 	migratedDB, err := DBMigrate(cfg.DB.WithContext(cfg.Context))
 	if err != nil {
 		return nil, err
 	}
+	cfg.DB = migratedDB
 
 	return &Manager{
+		cfg:     cfg,
 		db:      migratedDB,
 		table:   cfg.TableName,
 		retry:   cfg.Retry,
@@ -167,4 +175,45 @@ func (m *Manager) List(ctx context.Context, filter map[string]interface{}, limit
 		return nil, err
 	}
 	return tasks, nil
+}
+
+// --- Basic CRUD operations ---
+
+// CreateTask stores a new task record.
+func (m *Manager) CreateTask(ctx context.Context, t *model.Task) error {
+	if t.Type == "" {
+		return fmt.Errorf("taskforge: task type required")
+	}
+	return m.cfg.DB.WithContext(ctx).Create(t).Error
+}
+
+// GetTasks retrieves all tasks.
+func (m *Manager) GetTasks(ctx context.Context) ([]model.Task, error) {
+	var tasks []model.Task
+	if err := m.cfg.DB.WithContext(ctx).Find(&tasks).Error; err != nil {
+		return nil, err
+	}
+	return tasks, nil
+}
+
+// GetTask fetches a task by its ID.
+func (m *Manager) GetTask(ctx context.Context, id uuid.UUID) (*model.Task, error) {
+	var t model.Task
+	if err := m.cfg.DB.WithContext(ctx).First(&t, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+// UpdateTask persists changes to an existing task.
+func (m *Manager) UpdateTask(ctx context.Context, t *model.Task) error {
+	if t.ID == uuid.Nil {
+		return fmt.Errorf("taskforge: missing task ID")
+	}
+	return m.cfg.DB.WithContext(ctx).Save(t).Error
+}
+
+// DeleteTask removes a task by ID.
+func (m *Manager) DeleteTask(ctx context.Context, id uuid.UUID) error {
+	return m.cfg.DB.WithContext(ctx).Delete(&model.Task{}, "id = ?", id).Error
 }
