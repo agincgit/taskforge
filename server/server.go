@@ -32,13 +32,13 @@ func NewRouter(db *gorm.DB) (*gin.Engine, error) {
 	api.DELETE("/tasks/:id", th.DeleteTask)
 
 	// WorkerQueue endpoints
-	wqh := handler.NewWorkerQueueHandler(db)
+	wqh := handler.NewWorkerQueueHandler(mgr)
 	api.POST("/workerqueue", wqh.EnqueueTask)
 	api.GET("/workerqueue", wqh.GetQueue)
 	api.DELETE("/workerqueue/:id", wqh.DequeueTask)
 
 	// TaskTemplate endpoints
-	tth := handler.NewTaskTemplateHandler(db)
+	tth := handler.NewTaskTemplateHandler(mgr)
 	api.POST("/tasktemplate", tth.CreateTaskTemplate)
 	api.GET("/tasktemplate", tth.GetTaskTemplates)
 	api.PUT("/tasktemplate/:id", tth.UpdateTaskTemplate)

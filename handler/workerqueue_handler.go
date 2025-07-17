@@ -1,33 +1,35 @@
 package handler
 
 import (
+	"context"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
+	"github.com/google/uuid"
 
+	"github.com/agincgit/taskforge"
 	"github.com/agincgit/taskforge/model"
 )
 
 // WorkerQueueHandler manages worker queue operations.
 type WorkerQueueHandler struct {
-	DB *gorm.DB
+	Manager *taskforge.Manager
 }
 
 // NewWorkerQueueHandler constructs a WorkerQueueHandler.
-func NewWorkerQueueHandler(db *gorm.DB) *WorkerQueueHandler {
-	return &WorkerQueueHandler{DB: db}
+func NewWorkerQueueHandler(mgr *taskforge.Manager) *WorkerQueueHandler {
+	return &WorkerQueueHandler{Manager: mgr}
 }
 
 // EnqueueTask adds a new job to the queue.
 func (h *WorkerQueueHandler) EnqueueTask(c *gin.Context) {
+	var ctx context.Context = c.Request.Context()
 	var jq model.JobQueue
 	if err := c.ShouldBindJSON(&jq); err != nil {
 		c.String(http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if err := h.DB.Create(&jq).Error; err != nil {
+	if err := h.Manager.EnqueueJob(ctx, &jq); err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -36,8 +38,9 @@ func (h *WorkerQueueHandler) EnqueueTask(c *gin.Context) {
 
 // GetQueue returns all queued jobs.
 func (h *WorkerQueueHandler) GetQueue(c *gin.Context) {
-	var queue []model.JobQueue
-	if err := h.DB.Find(&queue).Error; err != nil {
+	var ctx context.Context = c.Request.Context()
+	queue, err := h.Manager.GetQueue(ctx)
+	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -46,13 +49,14 @@ func (h *WorkerQueueHandler) GetQueue(c *gin.Context) {
 
 // DequeueTask removes a job from the queue by its ID.
 func (h *WorkerQueueHandler) DequeueTask(c *gin.Context) {
+	var ctx context.Context = c.Request.Context()
 	idParam := c.Param("id")
-	id, err := strconv.ParseUint(idParam, 10, 64)
+	uuidVal, err := uuid.Parse(idParam)
 	if err != nil {
 		c.String(http.StatusBadRequest, "invalid ID parameter")
 		return
 	}
-	if err := h.DB.Delete(&model.JobQueue{}, id).Error; err != nil {
+	if err := h.Manager.DequeueJob(ctx, uuidVal); err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}

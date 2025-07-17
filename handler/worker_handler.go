@@ -1,26 +1,28 @@
 package handler
 
 import (
+	"context"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
+	"github.com/google/uuid"
 
+	"github.com/agincgit/taskforge"
 	"github.com/agincgit/taskforge/model"
 )
 
 type WorkerHandler struct {
-	DB *gorm.DB
+	Manager *taskforge.Manager
 }
 
 func (h *WorkerHandler) RegisterWorker(c *gin.Context) {
+	var ctx context.Context = c.Request.Context()
 	var reg model.WorkerRegistration
 	if err := c.ShouldBindJSON(&reg); err != nil {
 		c.String(http.StatusBadRequest, "Invalid request body")
 		return
 	}
-	if err := h.DB.Create(&reg).Error; err != nil {
+	if err := h.Manager.RegisterWorker(ctx, &reg); err != nil {
 		c.String(http.StatusInternalServerError, "Failed to register worker")
 		return
 	}
@@ -28,13 +30,16 @@ func (h *WorkerHandler) RegisterWorker(c *gin.Context) {
 }
 
 func (h *WorkerHandler) Heartbeat(c *gin.Context) {
+	var ctx context.Context = c.Request.Context()
 	id := c.Param("id")
-	var beat model.WorkerHeartbeat
-	if err := h.DB.First(&beat, "worker_id = ?", id).Error; err != nil {
+	uuidVal, err := uuid.Parse(id)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid ID")
+		return
+	}
+	if err := h.Manager.Heartbeat(ctx, uuidVal); err != nil {
 		c.String(http.StatusNotFound, "Worker not found")
 		return
 	}
-	beat.LastPing = time.Now()
-	h.DB.Save(&beat)
 	c.Status(http.StatusOK)
 }

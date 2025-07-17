@@ -217,3 +217,73 @@ func (m *Manager) UpdateTask(ctx context.Context, t *model.Task) error {
 func (m *Manager) DeleteTask(ctx context.Context, id uuid.UUID) error {
 	return m.cfg.DB.WithContext(ctx).Delete(&model.Task{}, "id = ?", id).Error
 }
+
+// CreateTaskTemplate stores a new task template.
+func (m *Manager) CreateTaskTemplate(ctx context.Context, t *model.TaskTemplate) error {
+	return m.cfg.DB.WithContext(ctx).Create(t).Error
+}
+
+// GetTaskTemplates retrieves all task templates.
+func (m *Manager) GetTaskTemplates(ctx context.Context) ([]model.TaskTemplate, error) {
+	var tpls []model.TaskTemplate
+	if err := m.cfg.DB.WithContext(ctx).Find(&tpls).Error; err != nil {
+		return nil, err
+	}
+	return tpls, nil
+}
+
+// GetTaskTemplate fetches a task template by ID.
+func (m *Manager) GetTaskTemplate(ctx context.Context, id uuid.UUID) (*model.TaskTemplate, error) {
+	var tpl model.TaskTemplate
+	if err := m.cfg.DB.WithContext(ctx).First(&tpl, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &tpl, nil
+}
+
+// UpdateTaskTemplate saves changes to a task template.
+func (m *Manager) UpdateTaskTemplate(ctx context.Context, t *model.TaskTemplate) error {
+	if t.ID == uuid.Nil {
+		return fmt.Errorf("taskforge: missing template ID")
+	}
+	return m.cfg.DB.WithContext(ctx).Save(t).Error
+}
+
+// DeleteTaskTemplate removes a template by ID.
+func (m *Manager) DeleteTaskTemplate(ctx context.Context, id uuid.UUID) error {
+	return m.cfg.DB.WithContext(ctx).Delete(&model.TaskTemplate{}, "id = ?", id).Error
+}
+
+// RegisterWorker persists a worker registration.
+func (m *Manager) RegisterWorker(ctx context.Context, w *model.WorkerRegistration) error {
+	return m.cfg.DB.WithContext(ctx).Create(w).Error
+}
+
+// Heartbeat updates a worker heartbeat record.
+func (m *Manager) Heartbeat(ctx context.Context, workerID uuid.UUID) error {
+	var beat model.WorkerHeartbeat
+	if err := m.cfg.DB.WithContext(ctx).First(&beat, "worker_id = ?", workerID).Error; err != nil {
+		return err
+	}
+	beat.LastPing = time.Now()
+	return m.cfg.DB.WithContext(ctx).Save(&beat).Error
+}
+
+// EnqueueJob adds a job to the worker queue.
+func (m *Manager) EnqueueJob(ctx context.Context, j *model.JobQueue) error {
+	return m.cfg.DB.WithContext(ctx).Create(j).Error
+}
+
+// GetQueue returns all queued jobs.
+func (m *Manager) GetQueue(ctx context.Context) ([]model.JobQueue, error) {
+	var q []model.JobQueue
+	if err := m.cfg.DB.WithContext(ctx).Find(&q).Error; err != nil {
+		return nil, err
+	}
+	return q, nil
+}
+
+// DequeueJob removes a job from the queue by ID.
+func (m *Manager) DequeueJob(ctx context.Context, id uuid.UUID) error {
+	return m.cfg.DB.WithContext(ctx).Delete(&model.JobQueue{}, "id = ?", id).Error
+}
