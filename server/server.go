@@ -8,6 +8,7 @@ import (
 
 	taskforge "github.com/agincgit/taskforge"
 	"github.com/agincgit/taskforge/handler"
+	"github.com/agincgit/taskforge/scheduler"
 )
 
 // NewRouter sets up database migrations and registers all TaskForge API routes.
@@ -18,6 +19,11 @@ func NewRouter(db *gorm.DB) (*gin.Engine, error) {
 		Context:   context.Background(),
 	})
 	if err != nil {
+		return nil, err
+	}
+
+	sched := scheduler.NewScheduler(mgr)
+	if err := sched.Start(context.Background()); err != nil {
 		return nil, err
 	}
 
@@ -39,7 +45,7 @@ func NewRouter(db *gorm.DB) (*gin.Engine, error) {
 	api.DELETE("/workerqueue/:id", wqh.DequeueTask)
 
 	// TaskTemplate endpoints
-	tth := handler.NewTaskTemplateHandler(mgr)
+	tth := handler.NewTaskTemplateHandler(mgr, sched)
 	api.POST("/tasktemplate", tth.CreateTaskTemplate)
 	api.GET("/tasktemplate", tth.GetTaskTemplates)
 	api.PUT("/tasktemplate/:id", tth.UpdateTaskTemplate)
