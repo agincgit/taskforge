@@ -28,6 +28,7 @@ func NewRouter(db *gorm.DB) (*gin.Engine, error) {
 	th := handler.NewTaskHandler(mgr)
 	api.POST("/tasks", th.CreateTask)
 	api.GET("/tasks", th.GetTasks)
+	api.GET("/tasks/:id", th.GetTask)
 	api.PUT("/tasks/:id", th.UpdateTask)
 	api.DELETE("/tasks/:id", th.DeleteTask)
 
