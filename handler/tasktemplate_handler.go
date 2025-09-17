@@ -12,11 +12,17 @@ import (
 )
 
 type TaskTemplateHandler struct {
-	Manager *taskforge.Manager
+	Manager   *taskforge.Manager
+	Scheduler TemplateScheduler
 }
 
-func NewTaskTemplateHandler(mgr *taskforge.Manager) *TaskTemplateHandler {
-	return &TaskTemplateHandler{Manager: mgr}
+type TemplateScheduler interface {
+	OnTemplateChanged(tpl model.TaskTemplate) error
+	OnTemplateDeleted(templateID uuid.UUID)
+}
+
+func NewTaskTemplateHandler(mgr *taskforge.Manager, sched TemplateScheduler) *TaskTemplateHandler {
+	return &TaskTemplateHandler{Manager: mgr, Scheduler: sched}
 }
 
 func (h *TaskTemplateHandler) CreateTaskTemplate(c *gin.Context) {
@@ -29,6 +35,12 @@ func (h *TaskTemplateHandler) CreateTaskTemplate(c *gin.Context) {
 	if err := h.Manager.CreateTaskTemplate(ctx, &tmpl); err != nil {
 		c.String(http.StatusInternalServerError, "Failed to create template")
 		return
+	}
+	if h.Scheduler != nil {
+		if err := h.Scheduler.OnTemplateChanged(tmpl); err != nil {
+			c.String(http.StatusInternalServerError, "Failed to register schedule")
+			return
+		}
 	}
 	c.JSON(http.StatusCreated, tmpl)
 }
@@ -64,6 +76,12 @@ func (h *TaskTemplateHandler) UpdateTaskTemplate(c *gin.Context) {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
+	if h.Scheduler != nil {
+		if err := h.Scheduler.OnTemplateChanged(*tmpl); err != nil {
+			c.String(http.StatusInternalServerError, "Failed to register schedule")
+			return
+		}
+	}
 	c.JSON(http.StatusOK, tmpl)
 }
 
@@ -78,6 +96,9 @@ func (h *TaskTemplateHandler) DeleteTaskTemplate(c *gin.Context) {
 	if err := h.Manager.DeleteTaskTemplate(ctx, uuidVal); err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
+	}
+	if h.Scheduler != nil {
+		h.Scheduler.OnTemplateDeleted(uuidVal)
 	}
 	c.Status(http.StatusNoContent)
 }
