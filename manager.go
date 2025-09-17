@@ -142,6 +142,10 @@ func (m *Manager) RetryTask(ctx context.Context, id uuid.UUID) (*model.Task, err
 
 	newTask := t
 	newTask.ID = uuid.Nil
+	newTask.FriendlyID = 0
+	newTask.CreatedAt = time.Time{}
+	newTask.UpdatedAt = time.Time{}
+	newTask.DeletedAt = gorm.DeletedAt{}
 	newTask.Status = string(StatusPending)
 	newTask.ParentTaskID = &t.ID
 	newTask.Attempt = t.Attempt + 1
