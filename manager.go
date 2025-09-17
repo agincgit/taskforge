@@ -3,6 +3,7 @@ package taskforge
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -189,6 +190,77 @@ func (m *Manager) CreateTask(ctx context.Context, t *model.Task) error {
 		return fmt.Errorf("taskforge: task type required")
 	}
 	return m.cfg.DB.WithContext(ctx).Create(t).Error
+}
+
+// CreateTaskFromTemplate creates a new task instance from a stored template.
+func (m *Manager) CreateTaskFromTemplate(ctx context.Context, templateID uuid.UUID, overrides map[string]interface{}, scheduledFor *time.Time) (*model.Task, error) {
+	var tpl model.TaskTemplate
+	if err := m.cfg.DB.WithContext(ctx).First(&tpl, "id = ?", templateID).Error; err != nil {
+		return nil, fmt.Errorf("taskforge: failed to load template %s: %w", templateID, err)
+	}
+
+	var worker model.WorkerType
+	if err := m.cfg.DB.WithContext(ctx).First(&worker, "id = ?", tpl.WorkerTypeID).Error; err != nil {
+		return nil, fmt.Errorf("taskforge: failed to load worker type %s: %w", tpl.WorkerTypeID, err)
+	}
+
+	merged := make(map[string]interface{})
+	if tpl.DefaultInputs != "" {
+		if err := json.Unmarshal([]byte(tpl.DefaultInputs), &merged); err != nil {
+			return nil, fmt.Errorf("taskforge: invalid template inputs: %w", err)
+		}
+	}
+
+	for key, value := range overrides {
+		merged[key] = value
+	}
+
+	payloadBytes, err := json.Marshal(merged)
+	if err != nil {
+		return nil, fmt.Errorf("taskforge: unable to encode task payload: %w", err)
+	}
+
+	tplID := tpl.ID
+	task := &model.Task{
+		Type:         worker.Name,
+		Status:       string(StatusPending),
+		Payload:      string(payloadBytes),
+		TemplateID:   &tplID,
+		ScheduledFor: scheduledFor,
+	}
+
+	if err := m.cfg.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(task).Error; err != nil {
+			return err
+		}
+
+		if len(merged) == 0 {
+			return nil
+		}
+
+		inputs := make([]model.TaskInput, 0, len(merged))
+		for key, value := range merged {
+			valueBytes, err := json.Marshal(value)
+			if err != nil {
+				return fmt.Errorf("taskforge: unable to encode input %s: %w", key, err)
+			}
+			inputs = append(inputs, model.TaskInput{
+				TaskID:     task.FriendlyID,
+				InputKey:   key,
+				InputValue: string(valueBytes),
+			})
+		}
+		if len(inputs) > 0 {
+			if err := tx.Create(&inputs).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return task, nil
 }
 
 // GetTasks retrieves all tasks.

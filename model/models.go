@@ -17,8 +17,10 @@ type Task struct {
 	Status        string     `gorm:"index;default:'pending'"`
 	Payload       string     `gorm:"type:text"`
 	Result        string     `gorm:"type:text"`
+	TemplateID    *uuid.UUID `gorm:"type:uuid;index"`
 	ParentTaskID  *uuid.UUID `gorm:"type:uuid"`
 	Attempt       int
+	ScheduledFor  *time.Time `gorm:"index"`
 	StartedAt     *time.Time
 	ItemsTotal    int
 	ItemsImpacted int
