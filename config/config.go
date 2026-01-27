@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
 
@@ -53,24 +53,24 @@ func GetConfig(name string) *Config {
 
 	// 1) Determine current working directory
 	if curDir, err = os.Getwd(); err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Failed to get current working directory")
 	}
 	confDir = fmt.Sprintf("%s/appconfig", curDir)
 	logDir = fmt.Sprintf("%s/applogs", curDir)
 
 	// 2) Ensure config file exists
 	if _, err := os.Stat(confDir + "/" + name); os.IsNotExist(err) {
-		log.Panicln("Config file not found:", name)
+		log.Panic().Str("file", name).Msg("Config file not found")
 	}
 
 	// Use explicit file path so callers can pass name with extension
 	configFile := fmt.Sprintf("%s/%s", confDir, name)
-	log.Debug("Loading config from:", configFile)
+	log.Debug().Str("path", configFile).Msg("Loading config")
 	viper.SetConfigFile(configFile)
 
 	// 3) Read or initialize defaults
 	if err = viper.ReadInConfig(); err != nil {
-		log.Debug("Config file missing or invalid, initializing defaults")
+		log.Debug().Msg("Config file missing or invalid, initializing defaults")
 
 		// Set defaults here:
 		viper.Set("LogLevel", "Warning")
@@ -89,7 +89,7 @@ func GetConfig(name string) *Config {
 
 		_ = viper.WriteConfigAs(confDir + "/config.json")
 	} else {
-		log.Debug("Config Loaded from file")
+		log.Debug().Msg("Config loaded from file")
 	}
 
 	// 4) Determine HostName (primary: os.Hostname(); fallback: `hostname` exec; fallback: random)
@@ -99,7 +99,7 @@ func GetConfig(name string) *Config {
 		if cmdErr == nil {
 			hostName = strings.TrimSpace(string(out))
 		} else {
-			log.Warnf("Unable to detect hostname, generating random: %v", err)
+			log.Warn().Err(err).Msg("Unable to detect hostname, generating random")
 			hostName = generateWorkerName()
 		}
 	}
