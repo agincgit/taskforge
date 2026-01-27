@@ -7,7 +7,7 @@ import (
 
 	"github.com/agincgit/taskforge/config"
 	"github.com/agincgit/taskforge/server"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -25,18 +25,18 @@ func main() {
 	// 3) Open GORM database connection
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("Failed to connect database: %v", err)
+		log.Fatal().Err(err).Msg("Failed to connect database")
 	}
 
 	// 4) Create TaskForge router (with migrations & handlers)
 	router, err := server.NewRouter(db)
 	if err != nil {
-		log.Fatalf("Failed to initialize TaskForge: %v", err)
+		log.Fatal().Err(err).Msg("Failed to initialize TaskForge")
 	}
 
 	// 5) Start HTTP server
-	log.Infof("TaskForge listening on port %s", cfg.Port)
+	log.Info().Str("port", cfg.Port).Msg("TaskForge listening")
 	if err := http.ListenAndServe(":"+cfg.Port, router); err != nil {
-		log.Fatalf("Server exited with error: %v", err)
+		log.Fatal().Err(err).Msg("Server exited with error")
 	}
 }
