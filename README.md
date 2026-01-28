@@ -111,17 +111,35 @@ The default server exposes a REST API under `/taskforge/api/v1`:
 
 ## Configuration
 
-Create `appconfig/config.json`:
+Configuration is loaded from environment variables:
 
-```json
-{
-  "DBHost": "localhost",
-  "DBPort": "5432",
-  "DBUser": "postgres",
-  "DBPassword": "secret",
-  "DBName": "taskforge_db",
-  "Port": "8080"
-}
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `TASKFORGE_DB_HOST` | PostgreSQL host | `localhost` |
+| `TASKFORGE_DB_PORT` | PostgreSQL port | `5432` |
+| `TASKFORGE_DB_USER` | Database user | `postgres` |
+| `TASKFORGE_DB_PASSWORD` | Database password | **required** |
+| `TASKFORGE_DB_NAME` | Database name | `taskforge_db` |
+| `TASKFORGE_DB_SSLMODE` | SSL mode | `disable` |
+| `TASKFORGE_PORT` | HTTP server port | `8080` |
+| `TASKFORGE_LOG_LEVEL` | Log level | `info` |
+| `TASKFORGE_HOSTNAME` | Worker hostname | auto-detected |
+
+### Example
+
+```bash
+export TASKFORGE_DB_PASSWORD=secret
+export TASKFORGE_DB_HOST=postgres.example.com
+./taskforge
+```
+
+### Docker
+
+```bash
+docker run -e TASKFORGE_DB_PASSWORD=secret \
+           -e TASKFORGE_DB_HOST=postgres \
+           -p 8080:8080 \
+           taskforge
 ```
 
 ## License

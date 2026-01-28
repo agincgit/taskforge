@@ -14,13 +14,16 @@ import (
 )
 
 func main() {
-	// 1) Load configuration (including DB fields you just added)
-	cfg := config.GetConfig("config.json")
+	// 1) Load configuration from environment variables
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to load configuration")
+	}
 
 	// 2) Build the Postgres DSN from cfg
 	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-		cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort,
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
+		cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort, cfg.DBSSLMode,
 	)
 
 	// 3) Open GORM database connection
