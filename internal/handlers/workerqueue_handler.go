@@ -1,14 +1,13 @@
-package handler
+package handlers
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"github.com/agincgit/taskforge"
-	"github.com/agincgit/taskforge/model"
+	"github.com/agincgit/taskforge/pkg/model"
+	"github.com/agincgit/taskforge/pkg/taskforge"
 )
 
 // WorkerQueueHandler manages worker queue operations.
@@ -23,7 +22,7 @@ func NewWorkerQueueHandler(mgr *taskforge.Manager) *WorkerQueueHandler {
 
 // EnqueueTask adds a new job to the queue.
 func (h *WorkerQueueHandler) EnqueueTask(c *gin.Context) {
-	var ctx context.Context = c.Request.Context()
+	ctx := c.Request.Context()
 	var jq model.JobQueue
 	if err := c.ShouldBindJSON(&jq); err != nil {
 		c.String(http.StatusBadRequest, "invalid request body")
@@ -38,7 +37,7 @@ func (h *WorkerQueueHandler) EnqueueTask(c *gin.Context) {
 
 // GetQueue returns all queued jobs.
 func (h *WorkerQueueHandler) GetQueue(c *gin.Context) {
-	var ctx context.Context = c.Request.Context()
+	ctx := c.Request.Context()
 	queue, err := h.Manager.GetQueue(ctx)
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
@@ -49,7 +48,7 @@ func (h *WorkerQueueHandler) GetQueue(c *gin.Context) {
 
 // DequeueTask removes a job from the queue by its ID.
 func (h *WorkerQueueHandler) DequeueTask(c *gin.Context) {
-	var ctx context.Context = c.Request.Context()
+	ctx := c.Request.Context()
 	idParam := c.Param("id")
 	uuidVal, err := uuid.Parse(idParam)
 	if err != nil {

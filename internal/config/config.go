@@ -1,3 +1,4 @@
+// Package config provides application configuration loading for the default TaskForge implementation.
 package config
 
 import (

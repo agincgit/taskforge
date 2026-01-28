@@ -12,9 +12,9 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	taskforge "github.com/agincgit/taskforge"
-	"github.com/agincgit/taskforge/model"
-	"github.com/agincgit/taskforge/server"
+	"github.com/agincgit/taskforge/internal/server"
+	"github.com/agincgit/taskforge/pkg/model"
+	"github.com/agincgit/taskforge/pkg/taskforge"
 )
 
 func TestGetTaskByIDRoute(t *testing.T) {

@@ -1,14 +1,13 @@
-package handler
+package handlers
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"github.com/agincgit/taskforge"
-	"github.com/agincgit/taskforge/model"
+	"github.com/agincgit/taskforge/pkg/model"
+	"github.com/agincgit/taskforge/pkg/taskforge"
 )
 
 type TaskHandler struct {
@@ -20,7 +19,7 @@ func NewTaskHandler(mgr *taskforge.Manager) *TaskHandler {
 }
 
 func (h *TaskHandler) CreateTask(c *gin.Context) {
-	var ctx context.Context = c.Request.Context()
+	ctx := c.Request.Context()
 	var t model.Task
 	if err := c.ShouldBindJSON(&t); err != nil {
 		c.String(http.StatusBadRequest, "Invalid body")
@@ -34,7 +33,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 }
 
 func (h *TaskHandler) GetTasks(c *gin.Context) {
-	var ctx context.Context = c.Request.Context()
+	ctx := c.Request.Context()
 	tasks, err := h.Manager.GetTasks(ctx)
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
@@ -44,7 +43,7 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 }
 
 func (h *TaskHandler) GetTask(c *gin.Context) {
-	var ctx context.Context = c.Request.Context()
+	ctx := c.Request.Context()
 	id := c.Param("id")
 	uuidVal, err := uuid.Parse(id)
 	if err != nil {
@@ -60,7 +59,7 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 }
 
 func (h *TaskHandler) UpdateTask(c *gin.Context) {
-	var ctx context.Context = c.Request.Context()
+	ctx := c.Request.Context()
 	id := c.Param("id")
 	uuidVal, err := uuid.Parse(id)
 	if err != nil {
@@ -84,7 +83,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 }
 
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
-	var ctx context.Context = c.Request.Context()
+	ctx := c.Request.Context()
 	id := c.Param("id")
 	uuidVal, err := uuid.Parse(id)
 	if err != nil {

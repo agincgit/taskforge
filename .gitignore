@@ -1,0 +1,39 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+taskforge
+
+# Test binaries
+*.test
+
+# Output
+*.out
+coverage.out
+coverage.html
+
+# Dependency directories
+vendor/
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local configuration (keep appconfig/config.json as example)
+appconfig/*.local.json
+
+# Logs
+applogs/
+*.log
+
+# Debug
+__debug_bin*
