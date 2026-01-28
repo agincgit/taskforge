@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/agincgit/taskforge/model"
+	"github.com/agincgit/taskforge/pkg/model"
 )
 
 type stubManager struct {

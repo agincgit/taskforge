@@ -1,3 +1,4 @@
+// Package scheduler provides cron-based task scheduling for TaskForge templates.
 package scheduler
 
 import (
@@ -9,10 +10,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 
-	"github.com/agincgit/taskforge/model"
+	"github.com/agincgit/taskforge/pkg/model"
 )
 
-// Logger is a minimal logging interface compatible with taskforge.Manager.
+// Logger is a minimal logging interface.
 type Logger interface {
 	Infof(format string, args ...interface{})
 	Errorf(format string, args ...interface{})

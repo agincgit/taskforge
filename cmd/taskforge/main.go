@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/agincgit/taskforge/config"
-	"github.com/agincgit/taskforge/server"
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+
+	"github.com/agincgit/taskforge/internal/config"
+	"github.com/agincgit/taskforge/internal/server"
 )
 
 func main() {

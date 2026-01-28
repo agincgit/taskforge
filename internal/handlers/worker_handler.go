@@ -1,22 +1,25 @@
-package handler
+package handlers
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"github.com/agincgit/taskforge"
-	"github.com/agincgit/taskforge/model"
+	"github.com/agincgit/taskforge/pkg/model"
+	"github.com/agincgit/taskforge/pkg/taskforge"
 )
 
 type WorkerHandler struct {
 	Manager *taskforge.Manager
 }
 
+func NewWorkerHandler(mgr *taskforge.Manager) *WorkerHandler {
+	return &WorkerHandler{Manager: mgr}
+}
+
 func (h *WorkerHandler) RegisterWorker(c *gin.Context) {
-	var ctx context.Context = c.Request.Context()
+	ctx := c.Request.Context()
 	var reg model.WorkerRegistration
 	if err := c.ShouldBindJSON(&reg); err != nil {
 		c.String(http.StatusBadRequest, "Invalid request body")
@@ -30,7 +33,7 @@ func (h *WorkerHandler) RegisterWorker(c *gin.Context) {
 }
 
 func (h *WorkerHandler) Heartbeat(c *gin.Context) {
-	var ctx context.Context = c.Request.Context()
+	ctx := c.Request.Context()
 	id := c.Param("id")
 	uuidVal, err := uuid.Parse(id)
 	if err != nil {

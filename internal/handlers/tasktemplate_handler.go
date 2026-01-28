@@ -1,32 +1,26 @@
-package handler
+package handlers
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"github.com/agincgit/taskforge"
-	"github.com/agincgit/taskforge/model"
+	"github.com/agincgit/taskforge/pkg/model"
+	"github.com/agincgit/taskforge/pkg/taskforge"
 )
 
 type TaskTemplateHandler struct {
 	Manager   *taskforge.Manager
-	Scheduler TemplateScheduler
+	Scheduler taskforge.TemplateScheduler
 }
 
-type TemplateScheduler interface {
-	OnTemplateChanged(tpl model.TaskTemplate) error
-	OnTemplateDeleted(templateID uuid.UUID)
-}
-
-func NewTaskTemplateHandler(mgr *taskforge.Manager, sched TemplateScheduler) *TaskTemplateHandler {
+func NewTaskTemplateHandler(mgr *taskforge.Manager, sched taskforge.TemplateScheduler) *TaskTemplateHandler {
 	return &TaskTemplateHandler{Manager: mgr, Scheduler: sched}
 }
 
 func (h *TaskTemplateHandler) CreateTaskTemplate(c *gin.Context) {
-	var ctx context.Context = c.Request.Context()
+	ctx := c.Request.Context()
 	var tmpl model.TaskTemplate
 	if err := c.ShouldBindJSON(&tmpl); err != nil {
 		c.String(http.StatusBadRequest, "Invalid request body")
@@ -46,7 +40,7 @@ func (h *TaskTemplateHandler) CreateTaskTemplate(c *gin.Context) {
 }
 
 func (h *TaskTemplateHandler) GetTaskTemplates(c *gin.Context) {
-	var ctx context.Context = c.Request.Context()
+	ctx := c.Request.Context()
 	tpls, err := h.Manager.GetTaskTemplates(ctx)
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
@@ -56,7 +50,7 @@ func (h *TaskTemplateHandler) GetTaskTemplates(c *gin.Context) {
 }
 
 func (h *TaskTemplateHandler) UpdateTaskTemplate(c *gin.Context) {
-	var ctx context.Context = c.Request.Context()
+	ctx := c.Request.Context()
 	id := c.Param("id")
 	uuidVal, err := uuid.Parse(id)
 	if err != nil {
@@ -86,7 +80,7 @@ func (h *TaskTemplateHandler) UpdateTaskTemplate(c *gin.Context) {
 }
 
 func (h *TaskTemplateHandler) DeleteTaskTemplate(c *gin.Context) {
-	var ctx context.Context = c.Request.Context()
+	ctx := c.Request.Context()
 	id := c.Param("id")
 	uuidVal, err := uuid.Parse(id)
 	if err != nil {
