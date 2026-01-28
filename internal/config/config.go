@@ -5,37 +5,29 @@ import (
 	"crypto/rand"
 	"fmt"
 	"os"
-	"os/exec"
-	"strings"
 
+	"github.com/caarlos0/env/v11"
 	"github.com/rs/zerolog/log"
-	"github.com/spf13/viper"
 )
 
-// Config holds all application settings.
+// Config holds all application settings, loaded from environment variables.
 type Config struct {
-	// Logging and paths
-	LogDepth        string
-	LogLocation     string
-	AutoAppPath     string
-	AutoAppConfPath string
-	AutoAppLogPath  string
+	// Database connection
+	DBHost     string `env:"TASKFORGE_DB_HOST" envDefault:"localhost"`
+	DBPort     string `env:"TASKFORGE_DB_PORT" envDefault:"5432"`
+	DBUser     string `env:"TASKFORGE_DB_USER" envDefault:"postgres"`
+	DBPassword string `env:"TASKFORGE_DB_PASSWORD,required"`
+	DBName     string `env:"TASKFORGE_DB_NAME" envDefault:"taskforge_db"`
+	DBSSLMode  string `env:"TASKFORGE_DB_SSLMODE" envDefault:"disable"`
 
-	// TaskForge API
-	TaskForgeAPIURL string
+	// HTTP server
+	Port string `env:"TASKFORGE_PORT" envDefault:"8080"`
 
-	// Database connection fields
-	DBHost     string
-	DBUser     string
-	DBPassword string
-	DBName     string
-	DBPort     string
+	// Logging
+	LogLevel string `env:"TASKFORGE_LOG_LEVEL" envDefault:"info"`
 
-	// HTTP port to listen on
-	Port string
-
-	// Hostname
-	HostName string
+	// Hostname (auto-detected if not set)
+	HostName string `env:"TASKFORGE_HOSTNAME"`
 }
 
 // generateWorkerName is used only as a fallback if hostname detection fails.
@@ -45,82 +37,30 @@ func generateWorkerName() string {
 	return fmt.Sprintf("worker-%x", b)
 }
 
-// GetConfig loads app settings from a JSON file under ./appconfig/<name>.json
-func GetConfig(name string) *Config {
-	var (
-		err                               error
-		curDir, confDir, logDir, hostName string
-	)
-
-	// 1) Determine current working directory
-	if curDir, err = os.Getwd(); err != nil {
-		log.Fatal().Err(err).Msg("Failed to get current working directory")
-	}
-	confDir = fmt.Sprintf("%s/appconfig", curDir)
-	logDir = fmt.Sprintf("%s/applogs", curDir)
-
-	// 2) Ensure config file exists
-	if _, err := os.Stat(confDir + "/" + name); os.IsNotExist(err) {
-		log.Panic().Str("file", name).Msg("Config file not found")
+// Load parses environment variables into Config.
+func Load() (*Config, error) {
+	cfg, err := env.ParseAs[Config]()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
 
-	// Use explicit file path so callers can pass name with extension
-	configFile := fmt.Sprintf("%s/%s", confDir, name)
-	log.Debug().Str("path", configFile).Msg("Loading config")
-	viper.SetConfigFile(configFile)
-
-	// 3) Read or initialize defaults
-	if err = viper.ReadInConfig(); err != nil {
-		log.Debug().Msg("Config file missing or invalid, initializing defaults")
-
-		// Set defaults here:
-		viper.Set("LogLevel", "Warning")
-		viper.Set("LogLocation", logDir)
-		viper.Set("TaskForgeAPIURL", "https://api.taskforge.local")
-
-		// DB defaults (override in your JSON as needed):
-		viper.Set("DBHost", "localhost")
-		viper.Set("DBPort", "5432")
-		viper.Set("DBUser", "postgres")
-		viper.Set("DBPassword", "password")
-		viper.Set("DBName", "taskforge_db")
-
-		// HTTP listening port default:
-		viper.Set("Port", "8080")
-
-		_ = viper.WriteConfigAs(confDir + "/config.json")
-	} else {
-		log.Debug().Msg("Config loaded from file")
-	}
-
-	// 4) Determine HostName (primary: os.Hostname(); fallback: `hostname` exec; fallback: random)
-	hostName, err = os.Hostname()
-	if err != nil || hostName == "" {
-		out, cmdErr := exec.Command("hostname").Output()
-		if cmdErr == nil {
-			hostName = strings.TrimSpace(string(out))
-		} else {
+	// Auto-detect hostname if not provided
+	if cfg.HostName == "" {
+		hostname, err := os.Hostname()
+		if err != nil || hostname == "" {
 			log.Warn().Err(err).Msg("Unable to detect hostname, generating random")
-			hostName = generateWorkerName()
+			cfg.HostName = generateWorkerName()
+		} else {
+			cfg.HostName = hostname
 		}
 	}
 
-	// 5) Populate & return Config
-	return &Config{
-		LogDepth:        viper.GetString("LogLevel"),
-		LogLocation:     viper.GetString("LogLocation"),
-		AutoAppPath:     curDir,
-		AutoAppConfPath: confDir,
-		AutoAppLogPath:  logDir,
-		TaskForgeAPIURL: viper.GetString("TaskForgeAPIURL"),
+	log.Debug().
+		Str("host", cfg.DBHost).
+		Str("port", cfg.DBPort).
+		Str("database", cfg.DBName).
+		Str("server_port", cfg.Port).
+		Msg("Configuration loaded")
 
-		DBHost:     viper.GetString("DBHost"),
-		DBPort:     viper.GetString("DBPort"),
-		DBUser:     viper.GetString("DBUser"),
-		DBPassword: viper.GetString("DBPassword"),
-		DBName:     viper.GetString("DBName"),
-
-		Port:     viper.GetString("Port"),
-		HostName: hostName,
-	}
+	return &cfg, nil
 }
